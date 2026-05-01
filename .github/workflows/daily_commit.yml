@@ -3,13 +3,16 @@ name: Daily AI Journal
 on:
   schedule:
     - cron: '30 0 * * *'   # 00:30 UTC = 06:00 IST every day
-  workflow_dispatch:         # lets you trigger manually to test
+  workflow_dispatch:
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true   # fixes the Node.js 20 deprecation warning
 
 jobs:
   auto-commit:
     runs-on: ubuntu-latest
     permissions:
-      contents: write        # required to push commits
+      contents: write
 
     steps:
       - name: Checkout repo
@@ -21,14 +24,14 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.12'
 
       - name: Install dependencies
-        run: pip install requests
+        run: pip install groq
 
       - name: Run auto-commit script
         env:
-          GROK_API_KEY: ${{ secrets.GROK_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
         run: python scripts/auto_commit.py
 
       - name: Push all commits
