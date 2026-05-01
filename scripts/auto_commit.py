@@ -66,15 +66,11 @@ def main():
     total_commits = random.randint(40, 50)
     print(f"Target: {total_commits} commits")
 
-    os.system('git config user.email "bot@daily-journal.auto"')
-    os.system('git config user.name "Daily Journal Bot"')
-
     for i in range(1, total_commits + 1):
         try:
             make_commit(i, total_commits)
         except Exception as e:
             print(f"  ✗ Error on commit {i}: {e}")
-        # Wait 3-8 seconds between calls (well within 30 req/min rate limit)
         if i < total_commits:
             time.sleep(random.randint(3, 8))
 
