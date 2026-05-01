@@ -1,77 +1,84 @@
 import os
 import random
 import time
-import requests
 from datetime import datetime
+from groq import Groq
 
-GROK_API_KEY = os.environ["GROK_API_KEY"]
+client = Groq(api_key=os.environ["GROQ_API_KEY"])
+
 TOPICS = [
     "a Python tip for beginners",
     "an interesting fact about space",
-    "a short motivational thought",
-    "a fun fact about history",
-    "a beginner's explanation of a CS concept",
+    "a short motivational thought about consistency",
+    "a fun fact about world history",
+    "a beginner explanation of a programming concept",
     "a creative writing prompt",
-    "a productivity habit",
+    "a useful productivity habit",
     "a Linux command worth knowing",
     "a life lesson in 3 sentences",
-    "a math curiosity",
+    "a curious fact about mathematics",
+    "a tip about healthy habits",
+    "something fascinating about the ocean",
+    "a quick explanation of how the internet works",
+    "a fact about a famous scientist",
+    "a tip for better sleep",
 ]
 
-def call_grok(topic):
-    url = "https://api.x.ai/v1/chat/completions"
-    headers = {
-        "Authorization": f"Bearer {GROK_API_KEY}",
-        "Content-Type": "application/json",
-    }
-    payload = {
-        "model": "grok-3-mini",
-        "messages": [
+def call_groq(topic):
+    response = client.chat.completions.create(
+        model="llama-3.1-8b-instant",   # fastest free model, 14,400 req/day limit
+        messages=[
             {
                 "role": "user",
-                "content": f"Write a short, unique, 3-5 sentence piece about: {topic}. Be creative and vary your style each time."
+                "content": (
+                    f"Write a unique, creative 3-5 sentence piece about: {topic}. "
+                    "Be engaging and vary your style each time. "
+                    "Do not repeat yourself."
+                )
             }
         ],
-        "max_tokens": 200,
-        "temperature": 1.0,
-    }
-    response = requests.post(url, headers=headers, json=payload, timeout=30)
-    response.raise_for_status()
-    return response.json()["choices"][0]["message"]["content"].strip()
+        max_tokens=200,
+        temperature=1.0,
+    )
+    return response.choices[0].message.content.strip()
 
 def make_commit(index, total):
     topic = random.choice(TOPICS)
-    content = call_grok(topic)
+    content = call_groq(topic)
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    
-    # Write unique file
-    filename = f"content/{datetime.now().strftime('%Y-%m-%d')}_entry_{index:03d}.md"
+    date_str = datetime.now().strftime("%Y-%m-%d")
+
+    filename = f"content/{date_str}_entry_{index:03d}.md"
     with open(filename, "w") as f:
-        f.write(f"# Entry {index} of {total}\n\n")
+        f.write(f"# Daily Entry {index} of {total}\n\n")
         f.write(f"**Topic:** {topic}\n\n")
         f.write(f"**Generated at:** {timestamp}\n\n")
         f.write(f"{content}\n")
-    
-    # Stage and commit
+
     os.system(f'git add "{filename}"')
-    os.system(f'git commit -m "daily({index}/{total}): {topic[:50]}"')
-    print(f"  ✓ Commit {index}/{total} done")
+    result = os.system(f'git commit -m "daily({index}/{total}): {topic[:48]}"')
+    if result == 0:
+        print(f"  ✓ Commit {index}/{total} — {topic[:40]}")
+    else:
+        print(f"  ✗ Commit {index}/{total} FAILED")
 
 def main():
     total_commits = random.randint(40, 50)
-    print(f"Starting: {total_commits} commits scheduled")
-    
-    # Git config (needed inside Actions runner)
+    print(f"Target: {total_commits} commits")
+
     os.system('git config user.email "bot@daily-journal.auto"')
     os.system('git config user.name "Daily Journal Bot"')
-    
+
     for i in range(1, total_commits + 1):
-        make_commit(i, total_commits)
-        # Random pause 5-20 seconds between commits (looks natural)
+        try:
+            make_commit(i, total_commits)
+        except Exception as e:
+            print(f"  ✗ Error on commit {i}: {e}")
+        # Wait 3-8 seconds between calls (well within 30 req/min rate limit)
         if i < total_commits:
-            time.sleep(random.randint(5, 20))
-    
-    print(f"\nDone! {total_commits} commits made.")
+            time.sleep(random.randint(3, 8))
+
+    print(f"\nAll done — {total_commits} commits made.")
 
 if __name__ == "__main__":
     main()
